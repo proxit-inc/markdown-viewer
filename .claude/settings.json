@@ -1,0 +1,47 @@
+{
+    "permissions": {
+      "allow": [
+        "Bash(gh label create:*)",
+        "Bash(gh issue list --state open)",
+        "Bash(gh issue view:*)",
+        "Bash(gh issue create:*)",
+        "Bash(gh label list:*)",
+        "Bash(gh issue comment:*)",
+        "Bash(ls:*)",
+        "Bash(pnpm build:*)",
+        "Bash(pnpm test:run:*)",
+        "Bash(pnpm add:*)",
+        "Bash(pnpm config:*)",
+        "Bash(pnpm type-check:*)"
+      ],
+      "deny": [
+        "bash(rm -rf *)",
+        "bash(sudo *)",
+        "bash(git push --force*)"
+      ]
+    },
+    "hooks": {
+      "Notification": [
+        {
+          "matcher": "",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmux notify \"Claude is waiting\""
+            }
+          ]
+        }
+      ],
+      "Stop": [
+        {
+          "matcher": "",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "~/.claude/hooks/cmux-notify.sh"
+            }
+          ]
+        }
+      ]
+    }
+  }
