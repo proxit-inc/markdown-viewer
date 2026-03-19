@@ -139,6 +139,13 @@ export default function Home() {
     }, 50);
   }, []);
 
+  const handlePreviewScrollEvent = useCallback(() => {
+    const el = previewRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    if (maxScroll > 0) handlePreviewScroll(el.scrollTop / maxScroll);
+  }, [handlePreviewScroll]);
+
   // File operations
   const handleImport = useCallback((content: string) => {
     setMarkdown(content);
@@ -228,11 +235,12 @@ export default function Home() {
           />
         }
         right={
-          <div ref={previewRef} className="h-full overflow-auto">
-            <MarkdownPreview
-              markdown={markdown}
-              onScrollChange={handlePreviewScroll}
-            />
+          <div
+            ref={previewRef}
+            className="h-full overflow-auto"
+            onScroll={handlePreviewScrollEvent}
+          >
+            <MarkdownPreview markdown={markdown} />
           </div>
         }
       />
