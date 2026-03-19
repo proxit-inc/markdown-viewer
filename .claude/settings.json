@@ -12,7 +12,10 @@
         "Bash(pnpm test:run:*)",
         "Bash(pnpm add:*)",
         "Bash(pnpm config:*)",
-        "Bash(pnpm type-check:*)"
+        "Bash(pnpm type-check:*)",
+        "Bash(pnpm create:*)",
+        "Bash(pnpm install:*)",
+        "Bash(pnpm lint:*)"
       ],
       "deny": [
         "bash(rm -rf *)",
