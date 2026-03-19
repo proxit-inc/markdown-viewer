@@ -19,6 +19,7 @@ interface Props {
   onChange: (value: string) => void;
   onCursorChange?: (pos: { line: number; col: number }) => void;
   onScrollChange?: (percent: number) => void;
+  onRegisterScroll?: (scrollToPercent: ((percent: number) => void) | null) => void;
   className?: string;
 }
 
@@ -27,6 +28,7 @@ export default function CodeMirrorEditor({
   onChange,
   onCursorChange,
   onScrollChange,
+  onRegisterScroll,
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -88,13 +90,25 @@ export default function CodeMirrorEditor({
     viewRef.current = view;
     view.scrollDOM.addEventListener("scroll", handleScroll);
 
+    const scrollToPercent = (percent: number) => {
+      const v = viewRef.current;
+      if (!v) return;
+      const { scrollHeight, clientHeight } = v.scrollDOM;
+      const maxScroll = scrollHeight - clientHeight;
+      if (maxScroll > 0) {
+        v.scrollDOM.scrollTop = percent * maxScroll;
+      }
+    };
+    onRegisterScroll?.(scrollToPercent);
+
     return () => {
+      onRegisterScroll?.(null);
       view.scrollDOM.removeEventListener("scroll", handleScroll);
       view.destroy();
       viewRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onRegisterScroll]);
 
   useEffect(() => {
     const view = viewRef.current;

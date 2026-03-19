@@ -125,6 +125,10 @@ export default function Home() {
     }, 50);
   }, []);
 
+  const registerEditorScroll = useCallback((fn: ((percent: number) => void) | null) => {
+    editorScrollRef.current = fn;
+  }, []);
+
   const handlePreviewScroll = useCallback((percent: number) => {
     if (scrollSourceRef.current === "editor") return;
     scrollSourceRef.current = "preview";
@@ -219,6 +223,7 @@ export default function Home() {
             onChange={handleMarkdownChange}
             onCursorChange={setCursor}
             onScrollChange={handleEditorScroll}
+            onRegisterScroll={registerEditorScroll}
             className="h-full"
           />
         }
