@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from "@codemirror/view";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -35,15 +35,14 @@ export default function CodeMirrorEditor({
   const viewRef = useRef<EditorView | null>(null);
   const isExternalUpdate = useRef(false);
 
-  const handleScroll = useCallback(() => {
-    const view = viewRef.current;
-    if (!view || !onScrollChange) return;
-    const { scrollTop, scrollHeight, clientHeight } = view.scrollDOM;
-    const maxScroll = scrollHeight - clientHeight;
-    if (maxScroll > 0) {
-      onScrollChange(scrollTop / maxScroll);
-    }
-  }, [onScrollChange]);
+  const onChangeRef = useRef(onChange);
+  const onCursorChangeRef = useRef(onCursorChange);
+  const onScrollChangeRef = useRef(onScrollChange);
+  const onRegisterScrollRef = useRef(onRegisterScroll);
+  onChangeRef.current = onChange;
+  onCursorChangeRef.current = onCursorChange;
+  onScrollChangeRef.current = onScrollChange;
+  onRegisterScrollRef.current = onRegisterScroll;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -63,12 +62,12 @@ export default function CodeMirrorEditor({
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !isExternalUpdate.current) {
-            onChange(update.state.doc.toString());
+            onChangeRef.current(update.state.doc.toString());
           }
           if (update.selectionSet || update.docChanged) {
             const head = update.state.selection.main.head;
             const line = update.state.doc.lineAt(head);
-            onCursorChange?.({
+            onCursorChangeRef.current?.({
               line: line.number,
               col: head - line.from + 1,
             });
@@ -88,6 +87,18 @@ export default function CodeMirrorEditor({
     });
 
     viewRef.current = view;
+
+    const handleScroll = () => {
+      const v = viewRef.current;
+      if (!v) return;
+      const cb = onScrollChangeRef.current;
+      if (!cb) return;
+      const { scrollTop, scrollHeight, clientHeight } = v.scrollDOM;
+      const maxScroll = scrollHeight - clientHeight;
+      if (maxScroll > 0) {
+        cb(scrollTop / maxScroll);
+      }
+    };
     view.scrollDOM.addEventListener("scroll", handleScroll);
 
     const scrollToPercent = (percent: number) => {
@@ -99,16 +110,17 @@ export default function CodeMirrorEditor({
         v.scrollDOM.scrollTop = percent * maxScroll;
       }
     };
-    onRegisterScroll?.(scrollToPercent);
+    onRegisterScrollRef.current?.(scrollToPercent);
 
     return () => {
-      onRegisterScroll?.(null);
+      onRegisterScrollRef.current?.(null);
       view.scrollDOM.removeEventListener("scroll", handleScroll);
       view.destroy();
       viewRef.current = null;
     };
+    // Mount-only: CodeMirror init once; callbacks read via refs to avoid stale closures.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onRegisterScroll]);
+  }, []);
 
   useEffect(() => {
     const view = viewRef.current;
