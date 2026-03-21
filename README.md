@@ -33,13 +33,15 @@ pnpm install
 pnpm dev
 ```
 
+Open **http://localhost:3000/markdown-viewer** (`basePath` is `/markdown-viewer`).
+
 ## Build
 
 ```bash
 pnpm build
 ```
 
-Output is generated in the `out/` directory as a static site.
+`pnpm build` runs `next build` then `scripts/relayout-export-for-basepath.mjs` (Next 16 static export puts assets at `out/_next` while HTML references `/markdown-viewer/_next/…`; the script moves them under **`out/markdown-viewer/`**). On Cloudflare Pages, the public URL is **`https://<project>.pages.dev/markdown-viewer/`**.
 
 ## Deploy
 
@@ -50,6 +52,8 @@ Connect the repository to Cloudflare Pages:
 - Environment variables:
   - `NODE_VERSION`: `22`
   - `ENABLE_EXPERIMENTAL_COREPACK`: `1`
+
+After deploy, verify **`/markdown-viewer/`** on the Pages hostname (not site root). If you use a custom domain via the **little-tool-kit** Worker, sync the Worker with [`docs/LITTLE_TOOL_KIT_WORKER.md`](docs/LITTLE_TOOL_KIT_WORKER.md) and confirm `https://proxit.tech/markdown-viewer` loads the editor.
 
 ## License
 
