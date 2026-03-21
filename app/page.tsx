@@ -82,7 +82,6 @@ export default function Home() {
   const [cursor, setCursor] = useState({ line: 1, col: 1 });
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollSourceRef = useRef<"editor" | "preview" | null>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,14 +90,13 @@ export default function Home() {
 
   const isMobile = !useMediaQuery("(min-width: 768px)");
 
-  // Load from localStorage on mount
+  // Merge localStorage after paint (same DEFAULT as SSG avoids hydration mismatch).
   useEffect(() => {
     const saved = loadMarkdown();
     if (saved !== null) {
       setMarkdown(saved);
     }
     setLastSaved(getLastSavedTime());
-    setLoaded(true);
   }, []);
 
   // Debounced auto-save
@@ -191,14 +189,6 @@ export default function Home() {
     },
     [handleImport]
   );
-
-  if (!loaded) {
-    return (
-      <div className="flex h-screen items-center justify-center text-gray-400">
-        Loading...
-      </div>
-    );
-  }
 
   return (
     <div
