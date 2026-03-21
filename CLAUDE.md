@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-pnpm dev          # Start dev server (Turbopack)
-pnpm build        # Static export to out/
+pnpm dev          # Start dev server (Turbopack) — open http://localhost:3000/markdown-viewer
+pnpm build        # Static export: next build + relayout → out/markdown-viewer/… (URLs match /markdown-viewer/_next)
 pnpm type-check   # TypeScript strict check (tsc --noEmit)
 pnpm lint         # ESLint (eslint . — eslint-config-next flat presets; Next 16 には next lint が無い)
 ```
@@ -15,7 +15,7 @@ No test framework is currently configured.
 
 ## Architecture
 
-Browser-only Markdown editor+previewer. All processing runs client-side; no API routes or server-side logic. Static export via `next build` produces the `out/` directory for Cloudflare Pages deployment.
+Browser-only Markdown editor+previewer. All processing runs client-side; no API routes or server-side logic. Static export via `next build` produces the `out/` directory for Cloudflare Pages deployment. **`basePath` is `/markdown-viewer`** (matches `https://proxit.tech/markdown-viewer`); direct Pages URL is `https://<project>.pages.dev/markdown-viewer/`.
 
 ### State & Data Flow
 
@@ -55,4 +55,6 @@ page.tsx (markdown state, scroll sync, auto-save, drag&drop)
 
 ### Deployment
 
-Cloudflare Pages with Git integration. CI runs type-check, lint, and build on PRs (`.ts`/`.tsx`/`.js` paths only). CF Pages handles deployment separately — no deploy step in CI.
+Cloudflare Pages with Git integration. CI runs type-check, lint, and build on PRs (`.ts`/`.tsx`/`.js` paths only). CF Pages handles deployment separately — no deploy step in CI. Build output directory remains **`out`** (Cloudflare Pages build output: `out`). After build, all public files live under **`out/markdown-viewer/`** so requests to `/markdown-viewer/_next/...` resolve. See `scripts/relayout-export-for-basepath.mjs`.
+
+When served behind **proxit.tech** via the little-tool-kit Worker, apply the proxy rules in [`docs/LITTLE_TOOL_KIT_WORKER.md`](docs/LITTLE_TOOL_KIT_WORKER.md) (same pathname to `MARKDOWN_VIEWER_HOST`, no HTML `/_next` rewriting).
