@@ -68,10 +68,13 @@ function useMediaQuery(query: string): boolean {
 
   useEffect(() => {
     const mql = window.matchMedia(query);
-    setMatches(mql.matches);
     const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
     mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
+    const raf = requestAnimationFrame(() => setMatches(mql.matches));
+    return () => {
+      cancelAnimationFrame(raf);
+      mql.removeEventListener("change", handler);
+    };
   }, [query]);
 
   return matches;
@@ -92,11 +95,14 @@ export default function Home() {
 
   // Merge localStorage after paint (same DEFAULT as SSG avoids hydration mismatch).
   useEffect(() => {
-    const saved = loadMarkdown();
-    if (saved !== null) {
-      setMarkdown(saved);
-    }
-    setLastSaved(getLastSavedTime());
+    const raf = requestAnimationFrame(() => {
+      const saved = loadMarkdown();
+      if (saved !== null) {
+        setMarkdown(saved);
+      }
+      setLastSaved(getLastSavedTime());
+    });
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   // Debounced auto-save

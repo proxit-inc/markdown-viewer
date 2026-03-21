@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm dev          # Start dev server (Turbopack)
 pnpm build        # Static export to out/
 pnpm type-check   # TypeScript strict check (tsc --noEmit)
-pnpm lint         # ESLint (next/core-web-vitals + next/typescript)
+pnpm lint         # ESLint (eslint . — eslint-config-next flat presets; Next 16 には next lint が無い)
 ```
 
 No test framework is currently configured.
