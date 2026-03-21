@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm dev          # Start dev server (Turbopack)
 pnpm build        # Static export to out/
 pnpm type-check   # TypeScript strict check (tsc --noEmit)
-pnpm lint         # ESLint (next/core-web-vitals + next/typescript)
+pnpm lint         # ESLint (eslint . — eslint-config-next flat presets; Next 16 には next lint が無い)
 ```
 
 No test framework is currently configured.
@@ -39,7 +39,7 @@ page.tsx (markdown state, scroll sync, auto-save, drag&drop)
 
 - **Mermaid** is lazy-loaded via dynamic `import("mermaid")` with a module-level singleton promise. Each `MermaidBlock` calls `mermaid.render()` in a useEffect with cancellation cleanup.
 
-- **Auto-save** debounces at 1000ms to localStorage (`md-viewer-content` key). The `loaded` state gates initial render until localStorage is read to avoid hydration mismatch.
+- **Auto-save** debounces at 1000ms to localStorage (`md-viewer-content` key). Initial render uses `DEFAULT_MARKDOWN` (matches SSG); a mount `useEffect` merges saved content from localStorage (brief flash possible when saved differs).
 
 - **MarkdownPreview** uses a custom `components.code` handler to intercept `language-mermaid` blocks and route them to `MermaidBlock`; all other code blocks pass through to rehype-highlight.
 
