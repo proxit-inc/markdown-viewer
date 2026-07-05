@@ -39,10 +39,13 @@ export default function CodeMirrorEditor({
   const onCursorChangeRef = useRef(onCursorChange);
   const onScrollChangeRef = useRef(onScrollChange);
   const onRegisterScrollRef = useRef(onRegisterScroll);
-  onChangeRef.current = onChange;
-  onCursorChangeRef.current = onCursorChange;
-  onScrollChangeRef.current = onScrollChange;
-  onRegisterScrollRef.current = onRegisterScroll;
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+    onCursorChangeRef.current = onCursorChange;
+    onScrollChangeRef.current = onScrollChange;
+    onRegisterScrollRef.current = onRegisterScroll;
+  });
 
   useEffect(() => {
     if (!containerRef.current) return;
