@@ -5,9 +5,15 @@ import dynamic from "next/dynamic";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import ResizablePanes from "@/components/ResizablePanes";
 import Toolbar from "@/components/Toolbar";
+import TabBar from "@/components/TabBar";
 import StatusBar from "@/components/StatusBar";
-import { saveMarkdown, loadMarkdown, getLastSavedTime } from "@/lib/storage";
-import { exportMarkdown } from "@/lib/file-io";
+import {
+  createDocument,
+  saveWorkspace,
+  loadWorkspace,
+  type DocumentData,
+} from "@/lib/storage";
+import { exportMarkdown, importMarkdown, isMarkdownFile, toExportFilename } from "@/lib/file-io";
 
 const CodeMirrorEditor = dynamic(() => import("@/components/CodeMirrorEditor"), {
   ssr: false,
@@ -81,39 +87,52 @@ function useMediaQuery(query: string): boolean {
 }
 
 export default function Home() {
-  const [markdown, setMarkdown] = useState(DEFAULT_MARKDOWN);
+  const [docs, setDocs] = useState<DocumentData[]>(() => [
+    createDocument("Untitled", DEFAULT_MARKDOWN),
+  ]);
+  const [activeId, setActiveId] = useState<string>(() => docs[0].id);
   const [cursor, setCursor] = useState({ line: 1, col: 1 });
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hydratedRef = useRef(false);
   const scrollSourceRef = useRef<"editor" | "preview" | null>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<((percent: number) => void) | null>(null);
 
   const isMobile = !useMediaQuery("(min-width: 768px)");
+  const activeDoc = docs.find((d) => d.id === activeId) ?? docs[0];
 
   // Merge localStorage after paint (same DEFAULT as SSG avoids hydration mismatch).
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
-      const saved = loadMarkdown();
-      if (saved !== null) {
-        setMarkdown(saved);
+      const workspace = loadWorkspace();
+      if (workspace) {
+        setDocs(workspace.docs);
+        setActiveId(workspace.activeId);
+        setLastSaved(workspace.savedAt);
       }
-      setLastSaved(getLastSavedTime());
+      hydratedRef.current = true;
     });
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Debounced auto-save
-  const handleMarkdownChange = useCallback((value: string) => {
-    setMarkdown(value);
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      saveMarkdown(value);
-      setLastSaved(new Date().toISOString());
+  // Debounced auto-save of the whole workspace (covers edits, tab open/close/switch, clear)
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const timeout = setTimeout(() => {
+      const savedAt = saveWorkspace(docs, activeId);
+      if (savedAt) setLastSaved(savedAt);
     }, 1000);
-  }, []);
+    return () => clearTimeout(timeout);
+  }, [docs, activeId]);
+
+  const handleMarkdownChange = useCallback(
+    (value: string) => {
+      setDocs((prev) => prev.map((d) => (d.id === activeId ? { ...d, content: value } : d)));
+    },
+    [activeId]
+  );
 
   // Scroll sync
   const handleEditorScroll = useCallback((percent: number) => {
@@ -150,28 +169,81 @@ export default function Home() {
     if (maxScroll > 0) handlePreviewScroll(el.scrollTop / maxScroll);
   }, [handlePreviewScroll]);
 
-  // File operations
-  const handleImport = useCallback((content: string) => {
-    setMarkdown(content);
-    saveMarkdown(content);
-    setLastSaved(new Date().toISOString());
+  const resetEditorPosition = useCallback(() => {
+    setCursor({ line: 1, col: 1 });
+    if (previewRef.current) previewRef.current.scrollTop = 0;
   }, []);
 
+  // Tab operations
+  const handleSelectTab = useCallback(
+    (id: string) => {
+      setActiveId(id);
+      resetEditorPosition();
+    },
+    [resetEditorPosition]
+  );
+
+  const handleNewTab = useCallback(() => {
+    const doc = createDocument("Untitled", "");
+    setDocs((prev) => [...prev, doc]);
+    setActiveId(doc.id);
+    resetEditorPosition();
+  }, [resetEditorPosition]);
+
+  const handleCloseTab = useCallback(
+    (id: string) => {
+      const closing = docs.find((d) => d.id === id);
+      if (!closing) return;
+      if (closing.content !== "" && !window.confirm("Close this tab? Its content will be discarded.")) {
+        return;
+      }
+
+      const closingIndex = docs.findIndex((d) => d.id === id);
+      const remaining = docs.filter((d) => d.id !== id);
+
+      if (remaining.length === 0) {
+        const fresh = createDocument("Untitled", "");
+        setDocs([fresh]);
+        setActiveId(fresh.id);
+      } else {
+        setDocs(remaining);
+        if (id === activeId) {
+          const nextActive = remaining[Math.min(closingIndex, remaining.length - 1)];
+          setActiveId(nextActive.id);
+        }
+      }
+      resetEditorPosition();
+    },
+    [docs, activeId, resetEditorPosition]
+  );
+
+  // File operations
+  const handleOpenFiles = useCallback(
+    async (files: File[]) => {
+      const mdFiles = files.filter((f) => isMarkdownFile(f.name));
+      if (!mdFiles.length) return;
+      const contents = await Promise.all(mdFiles.map(importMarkdown));
+      const newDocs = mdFiles.map((f, i) => createDocument(f.name, contents[i]));
+      setDocs((prev) => [...prev, ...newDocs]);
+      setActiveId(newDocs[newDocs.length - 1].id);
+      resetEditorPosition();
+    },
+    [resetEditorPosition]
+  );
+
   const handleExport = useCallback(() => {
-    exportMarkdown(markdown);
-  }, [markdown]);
+    exportMarkdown(activeDoc.content, toExportFilename(activeDoc.name));
+  }, [activeDoc]);
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(markdown);
-  }, [markdown]);
+    navigator.clipboard.writeText(activeDoc.content);
+  }, [activeDoc]);
 
   const handleClear = useCallback(() => {
     if (window.confirm("Clear all content?")) {
-      setMarkdown("");
-      saveMarkdown("");
-      setLastSaved(new Date().toISOString());
+      setDocs((prev) => prev.map((d) => (d.id === activeId ? { ...d, content: "" } : d)));
     }
-  }, []);
+  }, [activeId]);
 
   // Drag & drop
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -187,13 +259,9 @@ export default function Home() {
     async (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragOver(false);
-      const file = e.dataTransfer.files[0];
-      if (file && (file.name.endsWith(".md") || file.name.endsWith(".markdown") || file.name.endsWith(".txt"))) {
-        const content = await file.text();
-        handleImport(content);
-      }
+      await handleOpenFiles(Array.from(e.dataTransfer.files));
     },
-    [handleImport]
+    [handleOpenFiles]
   );
 
   return (
@@ -206,23 +274,32 @@ export default function Home() {
       {isDragOver && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-500/10 backdrop-blur-sm">
           <div className="rounded-lg border-2 border-dashed border-blue-500 bg-white px-8 py-6 text-lg font-medium text-blue-600 shadow-lg">
-            Drop .md file here
+            Drop .md files here
           </div>
         </div>
       )}
 
       <Toolbar
-        onImport={handleImport}
+        onOpenFiles={handleOpenFiles}
         onExport={handleExport}
         onCopy={handleCopy}
         onClear={handleClear}
+      />
+
+      <TabBar
+        docs={docs}
+        activeId={activeDoc.id}
+        onSelect={handleSelectTab}
+        onClose={handleCloseTab}
+        onNew={handleNewTab}
       />
 
       <ResizablePanes
         isMobile={isMobile}
         left={
           <CodeMirrorEditor
-            value={markdown}
+            key={activeDoc.id}
+            value={activeDoc.content}
             onChange={handleMarkdownChange}
             onCursorChange={setCursor}
             onScrollChange={handleEditorScroll}
@@ -236,7 +313,7 @@ export default function Home() {
             className="h-full overflow-auto"
             onScroll={handlePreviewScrollEvent}
           >
-            <MarkdownPreview markdown={markdown} />
+            <MarkdownPreview markdown={activeDoc.content} />
           </div>
         }
       />
@@ -244,7 +321,7 @@ export default function Home() {
       <StatusBar
         line={cursor.line}
         col={cursor.col}
-        charCount={markdown.length}
+        charCount={activeDoc.content.length}
         lastSaved={lastSaved}
       />
     </div>
