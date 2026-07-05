@@ -18,9 +18,9 @@
         "Bash(pnpm lint:*)"
       ],
       "deny": [
-        "bash(rm -rf *)",
-        "bash(sudo *)",
-        "bash(git push --force*)"
+        "Bash(rm -rf *)",
+        "Bash(sudo *)",
+        "Bash(git push --force*)"
       ]
     },
     "hooks": {
