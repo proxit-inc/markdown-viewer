@@ -3,22 +3,20 @@
 import { useRef, useState } from "react";
 
 interface Props {
-  onImport: (content: string) => void;
+  onOpenFiles: (files: File[]) => void;
   onExport: () => void;
   onCopy: () => void;
   onClear: () => void;
 }
 
-export default function Toolbar({ onImport, onExport, onCopy, onClear }: Props) {
+export default function Toolbar({ onOpenFiles, onExport, onCopy, onClear }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    onImport(text);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) onOpenFiles(files);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setFileMenuOpen(false);
   };
@@ -48,7 +46,7 @@ export default function Toolbar({ onImport, onExport, onCopy, onClear }: Props) 
                 onClick={() => fileInputRef.current?.click()}
                 className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
               >
-                Open .md
+                Open files…
               </button>
               <button
                 onClick={() => { onExport(); setFileMenuOpen(false); }}
@@ -79,6 +77,7 @@ export default function Toolbar({ onImport, onExport, onCopy, onClear }: Props) 
         ref={fileInputRef}
         type="file"
         accept=".md,.markdown,.txt"
+        multiple
         onChange={handleFileSelect}
         className="hidden"
       />

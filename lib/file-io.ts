@@ -16,3 +16,11 @@ export function importMarkdown(file: File): Promise<string> {
     reader.readAsText(file);
   });
 }
+
+export function isMarkdownFile(name: string): boolean {
+  return name.endsWith(".md") || name.endsWith(".markdown") || name.endsWith(".txt");
+}
+
+export function toExportFilename(name: string): string {
+  return isMarkdownFile(name) ? name : `${name || "document"}.md`;
+}
